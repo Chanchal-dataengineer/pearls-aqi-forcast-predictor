@@ -68,6 +68,20 @@ images
 streamlit run app.py
 ```
 
+
+## Model Registry
+
+A lightweight local Model Registry has been implemented to manage trained model versions.
+
+Current Version:
+- Random Forest v1
+
+Future improvements:
+- Hopsworks Model Registry
+- Vertex AI Model Registry
+
+
+
 ## Run Flask
 
 ```bash
