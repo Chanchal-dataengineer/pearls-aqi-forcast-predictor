@@ -7,3 +7,5 @@ matplotlib
 shap
 flask
 gunicorn
+python-dotenv
+requests
