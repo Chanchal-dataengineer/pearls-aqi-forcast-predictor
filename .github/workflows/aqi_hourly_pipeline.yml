@@ -8,16 +8,23 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: aqi-hourly-pipeline
+  cancel-in-progress: false
+
 jobs:
   hourly-pipeline:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
@@ -27,11 +34,38 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Validate OpenWeather secret
+        env:
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+        run: |
+          if [ -z "$OPENWEATHER_API_KEY" ]; then
+            echo "ERROR: OPENWEATHER_API_KEY GitHub Actions secret is missing."
+            exit 1
+          fi
+          echo "OpenWeather secret is configured."
+
       - name: Run automated feature pipeline
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
         run: |
-          python scripts/automated_feature_pipeline.py
+          set -e
+
+          for attempt in 1 2 3; do
+            echo "AQI pipeline attempt: $attempt"
+
+            if python scripts/automated_feature_pipeline.py; then
+              echo "Feature pipeline completed successfully."
+              break
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "ERROR: Feature pipeline failed after 3 attempts."
+              exit 1
+            fi
+
+            echo "Retrying in 20 seconds..."
+            sleep 20
+          done
 
       - name: Run data quality monitoring
         run: |
@@ -42,11 +76,36 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+      - name: Sync with remote
+        run: |
+          git pull --rebase origin main
+
       - name: Commit updated AQI data
         run: |
           git add data/raw data/processed
-          git diff --cached --quiet || git commit -m "Automated AQI data update [skip ci]"
+
+          if git diff --cached --quiet; then
+            echo "No new AQI data changes to commit."
+          else
+            git commit -m "Automated AQI data update [skip ci]"
+          fi
 
       - name: Push updated AQI data
         run: |
-          git push
+          for attempt in 1 2 3; do
+            echo "Push attempt: $attempt"
+
+            if git push origin HEAD:main; then
+              echo "AQI data pushed successfully."
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "ERROR: Git push failed after 3 attempts."
+              exit 1
+            fi
+
+            echo "Push failed. Retrying in 15 seconds..."
+            sleep 15
+            git pull --rebase origin main
+          done
