@@ -1,62 +1,82 @@
 from flask import Flask, request, jsonify
 import joblib
 import pandas as pd
+import numpy as np
+
+MODEL_PATH = "models/aqi_model.pkl"
+FEATURE_PATH = "models/feature_columns.pkl"
+
+
+model = joblib.load(MODEL_PATH)
+feature_columns = joblib.load(FEATURE_PATH)
+
 
 app = Flask(__name__)
 
-# Load trained model and feature columns
-model = joblib.load("models/aqi_model.pkl")
-feature_columns = joblib.load("models/feature_columns.pkl")
 
-
-@app.route("/")
+@app.route("/", methods=["GET"])
 def home():
-    return jsonify({
-        "message": "Pearls AQI Predictor API is Running!",
-        "status": "success"
-    })
+
+    return jsonify(
+        {
+            "status": "running",
+            "service": "Pearls AQI Predictor",
+            "model": type(model).__name__,
+            "feature_count": len(feature_columns),
+        }
+    )
 
 
 @app.route("/predict", methods=["POST"])
 def predict():
 
-    data = request.json
+    data = request.get_json()
 
-    sample = pd.DataFrame({
-        "CO": [data["CO"]],
-        "NO": [data["NO"]],
-        "NO2": [data["NO2"]],
-        "O3": [data["O3"]],
-        "SO2": [data["SO2"]],
-        "PM2_5": [data["PM2_5"]],
-        "PM10": [data["PM10"]],
-        "NH3": [data["NH3"]],
-        "hour": [data["hour"]],
-        "day": [data["day"]],
-        "weekday": [data["weekday"]]
-    })
+    required_inputs = [
+        "CO",
+        "NO",
+        "NO2",
+        "O3",
+        "SO2",
+        "PM2_5",
+        "PM10",
+        "NH3",
+        "hour",
+        "day",
+        "month",
+        "weekday",
+        "AQI",
+        "AQI_lag_1",
+        "AQI_change",
+        "AQI_rolling_avg",
+    ]
 
-    # Encode weekday exactly as during training
-    sample = pd.get_dummies(
-        sample,
-        columns=["weekday"],
-        drop_first=True
-    )
+    missing = [feature for feature in required_inputs if feature not in data]
 
-    # Match training feature columns
-    sample = sample.reindex(
-        columns=feature_columns,
-        fill_value=0
-    )
+    if missing:
+
+        return (
+            jsonify(
+                {"error": "Missing required features", "missing_features": missing}
+            ),
+            400,
+        )
+
+    sample = pd.DataFrame([{feature: data[feature] for feature in required_inputs}])
+
+    sample = sample.reindex(columns=feature_columns, fill_value=0)
 
     sample = sample.astype(float)
 
-    prediction = model.predict(sample)
+    prediction = float(model.predict(sample)[0])
 
-    return jsonify({
-        "Predicted AQI": float(prediction[0])
-    })
+    prediction = float(np.clip(prediction, 1, 5))
+
+    return jsonify(
+        {"predicted_aqi": round(prediction, 3), "model": type(model).__name__}
+    )
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+
+    app.run(host="0.0.0.0", port=5000, debug=False)

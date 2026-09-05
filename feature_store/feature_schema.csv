@@ -1,0 +1,17 @@
+feature_name,feature_type
+CO,float64
+NO,float64
+NO2,float64
+O3,float64
+SO2,float64
+PM2_5,float64
+PM10,float64
+NH3,float64
+hour,int64
+day,int64
+month,int64
+weekday,int64
+AQI,int64
+AQI_lag_1,float64
+AQI_change,float64
+AQI_rolling_avg,float64

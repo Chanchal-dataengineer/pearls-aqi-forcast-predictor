@@ -1,27 +1,26 @@
-name: AQI ML Pipeline
+name: AQI Hourly Feature Pipeline
 
 on:
-  push:
-    branches:
-      - main
-
   workflow_dispatch:
 
   schedule:
     - cron: "0 * * * *"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  validate-project:
+
+  hourly-pipeline:
+
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
@@ -32,52 +31,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Validate Python environment
+      - name: Run automated feature pipeline
+        env:
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
         run: |
-          python -c "import pandas, numpy, sklearn, joblib, shap, flask, streamlit; print('All required packages imported successfully')"
+          python scripts/automated_feature_pipeline.py
 
-      - name: Validate project artifacts
+      - name: Run data monitoring
         run: |
-          test -f models/aqi_model.pkl
-          test -f models/feature_columns.pkl
-          test -f models/model_metadata.json
-          test -f data/processed/AQI_feature_engineered.csv
-          echo "Required project artifacts found"
+          python scripts/monitor_data.py
 
-      - name: Validate model schema
+      - name: Configure Git
         run: |
-          python - <<'PY'
-          import joblib
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          columns = joblib.load("models/feature_columns.pkl")
-
-          expected = [
-              "CO", "NO", "NO2", "O3", "SO2",
-              "PM2_5", "PM10", "NH3",
-              "hour", "day", "month", "weekday",
-              "AQI", "AQI_lag_1", "AQI_change",
-              "AQI_rolling_avg"
-          ]
-
-          assert list(columns) == expected, (
-              f"Feature schema mismatch.\n"
-              f"Expected: {expected}\n"
-              f"Found: {list(columns)}"
-          )
-
-          assert len(columns) == 16
-
-          print("Feature schema validation passed")
-          print("Feature count:", len(columns))
-          PY
-
-      - name: Validate model loading
+      - name: Commit updated data
         run: |
-          python - <<'PY'
-          import joblib
+          git add data/raw data/processed
+          git diff --cached --quiet || git commit -m "Automated AQI data update [skip ci]"
 
-          model = joblib.load("models/aqi_model.pkl")
-
-          print("Model loaded successfully")
-          print("Model type:", type(model).__name__)
-          PY
+      - name: Push updated data
+        run: |
+          git push

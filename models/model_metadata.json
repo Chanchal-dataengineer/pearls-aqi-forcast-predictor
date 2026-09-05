@@ -1,14 +1,14 @@
 {
     "model_name": "RandomForest",
     "model_type": "RandomForestRegressor",
-    "trained_at_utc": "2026-09-05T03:00:35.126320+00:00",
-    "training_rows": 122,
+    "trained_at_utc": "2026-09-05T15:51:24.678886+00:00",
+    "training_rows": 123,
     "feature_count": 16,
     "target": "AQI_future",
     "evaluation": {
         "Ridge": {
-            "MAE": 0.0581062125735716,
-            "RMSE": 0.075855601565385,
+            "MAE": 0.060104400114250715,
+            "RMSE": 0.07692771025496753,
             "R2": 0.0
         },
         "RandomForest": {
