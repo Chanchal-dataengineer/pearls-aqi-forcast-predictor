@@ -1,20 +1,20 @@
 {
-    "model_name": "RandomForest",
-    "model_type": "RandomForestRegressor",
-    "trained_at_utc": "2026-09-05T15:51:24.678886+00:00",
-    "training_rows": 123,
+    "model_name": "Ridge",
+    "model_type": "Pipeline",
+    "trained_at_utc": "2026-09-06T02:10:16.745860+00:00",
+    "training_rows": 127,
     "feature_count": 16,
     "target": "AQI_future",
     "evaluation": {
         "Ridge": {
-            "MAE": 0.060104400114250715,
-            "RMSE": 0.07692771025496753,
+            "MAE": 0.08917129609878723,
+            "RMSE": 0.11265480702102032,
             "R2": 0.0
         },
         "RandomForest": {
-            "MAE": 0.0,
-            "RMSE": 0.0,
-            "R2": 1.0
+            "MAE": 0.04977319902319896,
+            "RMSE": 0.14653005873001332,
+            "R2": 0.0
         },
         "Persistence_Baseline": {
             "MAE": 0.0,
